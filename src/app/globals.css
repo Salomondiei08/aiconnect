@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Comptoir : palette inspirée de Reinvent Labs Academy (« Plateau »).
+ * Encre marine et pierre claire pour la structure, sarcelle pour les actions et les états actifs,
+ * ocre « comptable » pour ce qui demande attention (stock bas, montants à surveiller).
+ * Clair par défaut ; le sombre est un graphite qui garde les mêmes rôles. Paires de texte vérifiées WCAG AA.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --paper: #f3f2ee;
+  --surface: #ffffff;
+  --sunken: #e9e7e1;
+  --ink: #14213a;
+  --muted: #555e6c;
+  --line: #dcd9d1;
+  --field: #c3c8d0;
+  --brand: #14213a;
+  --brand-strong: #0b1526;
+  --brand-soft: #e2e6ee;
+  --on-brand: #ffffff;
+  --spark: #0b5754;
+  --spark-fill: #0e6f69;
+  --spark-soft: #dcecea;
+  --on-spark: #ffffff;
+  --ochre: #8a5a14;
+  --ochre-soft: #f5e7cf;
+  --link: #0b5754;
+  --moss: #2f6b4f;
+  --moss-soft: #dcebe2;
+  --danger: #b3261e;
+  --danger-soft: #f6dcd9;
+  --panel: #14213a;
+  --on-panel: #f3f2ee;
+  --on-panel-muted: #b9c0cc;
+}
+
+.dark {
+  --paper: #121620;
+  --surface: #1b2130;
+  --sunken: #0d1018;
+  --ink: #eceef2;
+  --muted: #a4abb8;
+  --line: #2f3747;
+  --field: #3d4659;
+  --brand: #e4e8f0;
+  --brand-strong: #ffffff;
+  --brand-soft: #262e40;
+  --on-brand: #14213a;
+  --spark: #7fd1c6;
+  --spark-fill: #3fb3a6;
+  --spark-soft: #16302f;
+  --on-spark: #0b1526;
+  --ochre: #e8b766;
+  --ochre-soft: #36291a;
+  --link: #7fc6bf;
+  --moss: #8cc4a6;
+  --moss-soft: #1f3329;
+  --danger: #f2948c;
+  --danger-soft: #3b1d1a;
+  --panel: #1b2740;
+  --on-panel: #eceef2;
+  --on-panel-muted: #b3bccc;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-field: var(--field);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-spark: var(--spark);
+  --color-spark-fill: var(--spark-fill);
+  --color-spark-soft: var(--spark-soft);
+  --color-on-spark: var(--on-spark);
+  --color-ochre: var(--ochre);
+  --color-ochre-soft: var(--ochre-soft);
+  --color-moss: var(--moss);
+  --color-moss-soft: var(--moss-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-link: var(--link);
+  --color-panel: var(--panel);
+  --color-on-panel: var(--on-panel);
+  --color-on-panel-muted: var(--on-panel-muted);
+
+  /* Noms shadcn/ui, reliés à la palette. */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--sunken);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--sunken);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--field);
+  --color-ring: var(--brand);
+  --radius: 0.5rem;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--line); }
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+::selection { background: var(--brand-soft); color: var(--ink); }
+
+/* Chiffres alignés dans les tableaux et les cartes de montants. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
