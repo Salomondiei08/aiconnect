@@ -11,23 +11,23 @@ datasource db {
 }
 
 model Company {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   name                 String
-  currency             String   @default("XOF")
-  country              String   @default("Côte d'Ivoire")
+  currency             String    @default("XOF")
+  country              String    @default("Côte d'Ivoire")
   commune              String
   city                 String
   postalCode           String
   landmark             String
-  timezone             String   @default("Africa/Abidjan")
+  timezone             String    @default("Africa/Abidjan")
   startDate            DateTime?
   website              String?
   phone                String?
-  fiscalYearStartMonth Int      @default(1)
-  stockMethod          String   @default("FIFO")
+  fiscalYearStartMonth Int       @default(1)
+  stockMethod          String    @default("FIFO")
   tax1Name             String?
   tax1Number           String?
-  createdAt            DateTime @default(now())
+  createdAt            DateTime  @default(now())
 
   locations      Location[]
   users          User[]
@@ -38,12 +38,12 @@ model Company {
 }
 
 model Location {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
   code      String
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
   sales     Sale[]
   users     UserLocation[]
 
@@ -61,27 +61,31 @@ model UserLocation {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  companyId    String
-  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  username     String    @unique
-  email        String    @unique
-  prefix       String?
-  firstName    String
-  lastName     String?
-  passwordHash String?
-  role         String
-  isActive     Boolean   @default(true)
-  canLogin     Boolean   @default(true)
-  allLocations Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  username        String    @unique
+  email           String    @unique
+  prefix          String?
+  firstName       String
+  lastName        String?
+  passwordHash    String?
+  role            String
+  isActive        Boolean   @default(true)
+  canLogin        Boolean   @default(true)
+  allLocations    Boolean   @default(true)
+  lastLoginAt     DateTime?
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  sessions    Session[]
-  resetTokens PasswordResetToken[]
-  sales       Sale[]
-  locations   UserLocation[]
+  sessions     Session[]
+  verifyTokens EmailVerificationToken[]
+  activities   ActivityLog[]            @relation("ActivityTarget")
+  actions      ActivityLog[]            @relation("ActivityActor")
+  resetTokens  PasswordResetToken[]
+  sales        Sale[]
+  locations    UserLocation[]
 
   @@index([companyId])
 }
@@ -106,6 +110,43 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+/// Confirmation d'adresse e-mail : empreinte seule, 48 h, usage unique.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+/// Tentatives échouées (connexion, demandes de lien) pour limiter le débit. key = « login:<username> », « reset:<email> ».
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+/// Journal d'activité : qui a fait quoi sur quel utilisateur (onglet Activités de la fiche).
+model ActivityLog {
+  id        String   @id @default(cuid())
+  companyId String
+  targetId  String
+  target    User     @relation("ActivityTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  /// created | updated | login | password_changed | deactivated | email_verified
+  action    String
+  /// Champs modifiés : { champ: [ancien, nouveau] } (jamais de mot de passe).
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([targetId, createdAt])
 }
 
 model Product {

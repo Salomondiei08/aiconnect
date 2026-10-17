@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { EmailSendError, sendWithRetry } from "./retry";
 
-export type EmailType = "welcome" | "password_reset" | "password_changed" | "invoice";
+export type EmailType = "welcome" | "email_verification" | "password_reset" | "password_changed" | "invoice";
 
 type Attachment = { filename: string; content: Buffer; contentType: string };
 

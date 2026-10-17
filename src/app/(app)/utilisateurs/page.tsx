@@ -29,7 +29,7 @@ export default async function UsersPage() {
           <h1 className="font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.02em]">Utilisateurs</h1>
           <p className="mt-1 text-muted">Gérer les utilisateurs</p>
         </div>
-        <ButtonLink href="/utilisateurs/nouveau"><Plus aria-hidden /> Ajouter</ButtonLink>
+        <ButtonLink href="/utilisateurs/nouveau" className="print:hidden"><Plus aria-hidden /> Ajouter</ButtonLink>
       </div>
       <UsersTable rows={rows} />
     </div>

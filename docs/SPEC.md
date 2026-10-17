@@ -61,6 +61,8 @@ Règles :
 5. E-mail envoyé (type `password_reset`) : sujet contenant « Réinitialisation », lien `APP_URL/reinitialiser?token=...`. Jeton de 256 bits ; seule son empreinte SHA-256 est en base ; valable 1 heure ; usage unique.
 6. Page du lien : « Nouveau mot de passe », « Confirmation du mot de passe », bouton « Enregistrer ». Succès : toutes les sessions sont fermées, redirection vers `/connexion` avec « Mot de passe modifié », e-mail de confirmation (type `password_changed`). L'ancien mot de passe ne marche plus.
 7. Lien déjà utilisé ou expiré : « Lien invalide ou expiré ».
+8. Limitation : 5 échecs de connexion par compte et par IP en 15 minutes, puis « Trop de tentatives de connexion. Réessayez dans 15 minutes. » ; 3 liens de réinitialisation par adresse et par heure (réponse identique au-delà).
+9. Confirmation d'adresse : le bienvenue contient un lien `/verifier-email?token=` (empreinte seule, 48 h, usage unique). Tant que l'adresse n'est pas confirmée, le tableau de bord affiche un rappel avec « Renvoyer le lien » (3 par heure). Avec `REQUIRE_EMAIL_VERIFICATION=1`, la connexion est refusée tant que l'adresse n'est pas confirmée.
 
 ## 6. Tableau de bord (`/tableau-de-bord`)
 
@@ -74,6 +76,12 @@ Règles :
 ## 7. Utilisateurs
 
 **Liste `/utilisateurs`** : titre « Utilisateurs », bouton « Ajouter », champ « Rechercher » (filtre instantané, insensible à la casse, sur toutes les colonnes), tableau `<table>` avec colonnes Nom d'utilisateur, Nom, Rôle, E-mail, Action. Actions par ligne : « Modifier », « Voir », « Effacer ». « Effacer » est **désactivé** (`disabled`) sur la ligne de l'utilisateur connecté (RG4).
+
+**Barre d'outils** : « Afficher [10, 25, 50, 100] entrées » (25 par défaut), exports CSV, Excel, PDF (`/api/utilisateurs/export?format=csv|xlsx|pdf&q=&cols=&sort=&dir=`), « Imprimer », menu « Colonnes ». Tri par clic sur l'en-tête (croissant puis décroissant). Pied : « Affiche X à Y sur Z entrées (filtré à partir de N entrées au total) », « Précédent », numéros, « Prochain ». RG8 : les exports reprennent colonnes visibles et filtre, sans la colonne Action ; réservés aux administrateurs (401 sans session, 403 sinon).
+
+**Fiche `/utilisateurs/{id}`** (« Voir l'utilisateur », lecture seule) : sélecteur d'utilisateur, carte de profil (initiales, nom, rôle, identifiant, e-mail, badge « Actif »/« Inactif », bouton « Modifier »), informations, onglet Activités (date, action, auteur, champs modifiés avec ancienne et nouvelle valeur). Mot de passe jamais affiché.
+
+**Modification `/utilisateurs/{id}/modifier`** : même formulaire prérempli ; mot de passe vide = inchangé. « Utilisateur modifié avec succès ». RG4 : impossible de se désactiver soi-même. RG5 : impossible de rétrograder le dernier administrateur. Accès retiré ou mot de passe changé : sessions de la personne fermées.
 
 **Formulaire `/utilisateurs/nouveau`** (titre « Ajouter un utilisateur ») :
 1. Bloc 1 : « Préfixe », « Prénom »*, « Nom de famille », « E-mail »*, case « Est actif » (cochée par défaut).
@@ -101,8 +109,9 @@ Règles :
 
 1. `Company`, `Location`, `User` (+ `UserLocation`), `Session` (empreinte du jeton), `PasswordResetToken` (empreinte, `expiresAt`, `usedAt`).
 2. `Product`, `Sale`, `SaleItem`, `StockMovement`. Montants en entiers XOF.
-3. `EmailDelivery` : `type` (`welcome`, `password_reset`, `password_changed`, `invoice`), `to`, `subject`, `status` (`queued`, `sent`, `delivered`, `bounced`, `failed`, `complained`, `delayed`), `resendId`, `idempotencyKey` unique, `attempts`, `error` expurgé, `attachments` (nom, taille, type), `lastEventAt`.
-4. `EmailWebhookEvent` : `providerEventId` (svix-id) unique, `type`, `occurredAt`.
+3. `EmailDelivery` : `type` (`welcome`, `email_verification`, `password_reset`, `password_changed`, `invoice`), `to`, `subject`, `status` (`queued`, `sent`, `delivered`, `bounced`, `failed`, `complained`, `delayed`), `resendId`, `idempotencyKey` unique, `attempts`, `error` expurgé, `attachments` (nom, taille, type), `lastEventAt`.
+4. `EmailVerificationToken` (empreinte, 48 h, usage unique), `RateLimitHit` (clé, date), `ActivityLog` (cible, auteur, action, détails).
+5. `EmailWebhookEvent` : `providerEventId` (svix-id) unique, `type`, `occurredAt`.
 
 ## 10 bis. E-mails et webhook
 

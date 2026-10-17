@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { createUserAction } from "@/lib/actions/users";
+import { createUserAction, updateUserAction } from "@/lib/actions/users";
 import type { FormState } from "@/lib/actions/form";
 import { ROLES } from "@/lib/validation";
 
@@ -32,26 +32,48 @@ function CheckField({ id, name, label, checked, onChange, value }: { id: string;
   );
 }
 
-/** « Ajouter un utilisateur » : blocs 1 à 3 du cahier des charges, un seul bouton Sauvegarder. */
-export function UserForm({ locations }: { locations: { id: string; name: string; code: string }[] }) {
+export type EditableUser = {
+  id: string;
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  role: string;
+  isActive: boolean;
+  canLogin: boolean;
+  allLocations: boolean;
+  locationIds: string[];
+};
+
+/**
+ * « Ajouter un utilisateur » et « Modifier » : blocs 1 à 3 du cahier des charges, un seul bouton Sauvegarder.
+ * En modification, les champs sont préremplis et un mot de passe vide garde l'actuel.
+ */
+export function UserForm({ locations, user }: { locations: { id: string; name: string; code: string }[]; user?: EditableUser }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState<FormState, FormData>(createUserAction, {});
-  const [isActive, setIsActive] = useState(true);
-  const [canLogin, setCanLogin] = useState(true);
-  const [allLocations, setAllLocations] = useState(true);
-  const [picked, setPicked] = useState<string[]>([]);
+  const editing = !!user;
+  const [state, formAction, pending] = useActionState<FormState, FormData>(editing ? updateUserAction.bind(null, user.id) : createUserAction, {});
+  const [isActive, setIsActive] = useState(user?.isActive ?? true);
+  const [canLogin, setCanLogin] = useState(user?.canLogin ?? true);
+  const [allLocations, setAllLocations] = useState(user?.allLocations ?? true);
+  const [picked, setPicked] = useState<string[]>(user?.locationIds ?? []);
   const errors = state.errors ?? {};
-  const values = state.values ?? {};
+  // Après une erreur, on réaffiche la saisie ; sinon les valeurs actuelles de l'utilisateur.
+  const initial: Record<string, string> = user
+    ? { prefix: user.prefix, firstName: user.firstName, lastName: user.lastName, email: user.email, username: user.username, role: user.role }
+    : {};
+  const values = state.values ?? initial;
 
   useEffect(() => {
     if (state.success) {
       toast.success(state.success);
-      router.push("/utilisateurs");
+      router.push(editing ? `/utilisateurs/${user.id}` : "/utilisateurs");
     } else if (state.errors) {
       // Amène la première erreur à l'écran (le formulaire est long sur téléphone).
       document.querySelector('[role="alert"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [state, router]);
+  }, [state, router, editing, user?.id]);
 
   return (
     <form action={formAction} className="space-y-5" noValidate>
@@ -84,14 +106,14 @@ export function UserForm({ locations }: { locations: { id: string; name: string;
         </div>
         {canLogin ? (
           <>
-            <FormField id="username" label="Nom d'utilisateur" hint="Laisser vide pour le générer à partir du prénom" error={errors.username}>
+            <FormField id="username" label="Nom d'utilisateur" hint={editing ? undefined : "Laisser vide pour le générer à partir du prénom"} error={errors.username}>
               <Input id="username" name="username" maxLength={50} autoCapitalize="none" autoComplete="off" defaultValue={values.username} aria-invalid={!!errors.username} />
             </FormField>
             <div className="hidden sm:block" />
-            <FormField id="password" label="Mot de passe" required error={errors.password}>
+            <FormField id="password" label="Mot de passe" required={!editing} hint={editing ? "Laisser vide pour garder le mot de passe actuel" : undefined} error={errors.password}>
               <Input id="password" name="password" type="password" autoComplete="new-password" aria-invalid={!!errors.password} />
             </FormField>
-            <FormField id="confirm" label="Confirmez le mot de passe" required error={errors.confirm}>
+            <FormField id="confirm" label="Confirmez le mot de passe" required={!editing} error={errors.confirm}>
               <Input id="confirm" name="confirm" type="password" autoComplete="new-password" aria-invalid={!!errors.confirm} />
             </FormField>
           </>

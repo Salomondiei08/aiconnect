@@ -1,6 +1,7 @@
 "use server";
 
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createElement } from "react";
 import { z } from "zod";
@@ -14,9 +15,15 @@ import {
   passwordChangedText,
   PasswordResetEmail,
   passwordResetText,
+  VerifyEmail,
+  verifyText,
   WelcomeEmail,
   welcomeText,
 } from "@/lib/email/templates";
+import { logActivity } from "@/lib/activity";
+import { createVerificationUrl, verificationRequired } from "@/lib/email-verification";
+import { clearHits, isLimited, LIMITS, recordHit } from "@/lib/rate-limit";
+import { requireUser } from "@/lib/auth/session";
 import { appUrl } from "@/lib/utils";
 import { emailSchema, fieldErrors, passwordSchema, usernameSchema } from "@/lib/validation";
 import { uniquenessErrors } from "@/lib/accounts";
@@ -88,31 +95,72 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   });
 
   await createSession(user.id);
+  await logActivity({ companyId: user.companyId, targetId: user.id, actorId: user.id, action: "created" });
+  // Le bienvenue porte aussi le lien de confirmation d'adresse : un seul e-mail à l'inscription.
+  const welcome = { firstName: user.firstName, company: d.company, url: appUrl("/tableau-de-bord"), verifyUrl: await createVerificationUrl(user.id) };
   // L'e-mail part après la réponse : l'inscription ne dépend pas de la latence du fournisseur.
   after(() =>
     sendEmail({
       type: "welcome",
       to: user.email,
       subject: `Bienvenue sur Comptoir, ${user.firstName}`,
-      react: createElement(WelcomeEmail, { firstName: user.firstName, company: d.company, url: appUrl("/tableau-de-bord") }),
-      text: welcomeText({ firstName: user.firstName, company: d.company, url: appUrl("/tableau-de-bord") }),
+      react: createElement(WelcomeEmail, welcome),
+      text: welcomeText(welcome),
       companyId: user.companyId,
     }),
   );
   redirect("/tableau-de-bord");
 }
 
-/** Connexion par nom d'utilisateur. Le statut désactivé n'est révélé qu'avec le bon mot de passe. */
+/** IP du client derrière Caddy (première adresse de X-Forwarded-For). */
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+}
+
+/**
+ * Connexion par nom d'utilisateur. Le statut désactivé n'est révélé qu'avec le bon mot de passe.
+ * Limite : 5 échecs par compte et par IP en 15 min (clé compte + IP : un tiers ne peut pas bloquer le titulaire partout).
+ */
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const key = `login:${username}:${await clientIp()}`;
+  if (await isLimited(key, LIMITS.login.max, LIMITS.login.windowMs)) return { message: LIMITS.login.message, values: { username } };
+
   const user = username ? await db.user.findUnique({ where: { username } }) : null;
   const valid = await verifyPassword(password, user?.passwordHash);
-  if (!user || !valid) return { message: "Nom d'utilisateur ou mot de passe incorrect", values: { username } };
+  if (!user || !valid) {
+    await recordHit(key);
+    return { message: "Nom d'utilisateur ou mot de passe incorrect", values: { username } };
+  }
   if (!user.isActive || !user.canLogin) return { message: "Ce compte est désactivé", values: { username } };
+  if (verificationRequired() && !user.emailVerifiedAt) return { message: "Confirmez d'abord votre adresse e-mail (lien reçu à l'inscription).", values: { username } };
+
+  await clearHits(key);
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id);
+  await logActivity({ companyId: user.companyId, targetId: user.id, actorId: user.id, action: "login" });
   redirect("/tableau-de-bord");
+}
+
+/** Renvoie le lien de confirmation d'adresse à l'utilisateur connecté (3 par heure au plus). */
+export async function resendVerificationAction(): Promise<{ ok: boolean; message: string }> {
+  const user = await requireUser();
+  if (user.emailVerifiedAt) return { ok: true, message: "Votre adresse est déjà confirmée." };
+  const key = `verify:${user.id}`;
+  if (await isLimited(key, LIMITS.verify.max, LIMITS.verify.windowMs)) return { ok: false, message: "Trop de demandes. Réessayez dans une heure." };
+  await recordHit(key);
+  const verifyUrl = await createVerificationUrl(user.id);
+  const result = await sendEmail({
+    type: "email_verification",
+    to: user.email,
+    subject: "Confirmez votre adresse e-mail",
+    react: createElement(VerifyEmail, { firstName: user.firstName, verifyUrl }),
+    text: verifyText({ firstName: user.firstName, verifyUrl }),
+    companyId: user.companyId,
+  });
+  return result.ok ? { ok: true, message: `Lien envoyé à ${user.email}` } : { ok: false, message: "L'envoi a échoué. Réessayez dans un instant." };
 }
 
 export async function logoutAction(): Promise<void> {
@@ -126,6 +174,10 @@ const FORGOT_MESSAGE = "Si un compte existe avec cette adresse, un e-mail a ét�
 export async function forgotPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = emailSchema.safeParse(formData.get("email"));
   if (!parsed.success) return { errors: { email: "Adresse e-mail invalide" } };
+  // Au plus 3 liens par adresse et par heure : protège la boîte du titulaire et le quota d'envoi.
+  const key = `reset:${parsed.data}`;
+  if (await isLimited(key, LIMITS.reset.max, LIMITS.reset.windowMs)) return { success: FORGOT_MESSAGE };
+  await recordHit(key);
   const user = await db.user.findUnique({ where: { email: parsed.data } });
   if (user && user.isActive && user.canLogin) {
     const token = generateToken();
@@ -165,6 +217,7 @@ export async function resetPasswordAction(_prev: FormState, formData: FormData):
   if (!user) return { message: INVALID_LINK };
 
   await destroyAllSessions(user.id);
+  await logActivity({ companyId: user.companyId, targetId: user.id, actorId: user.id, action: "password_changed" });
   after(() =>
     sendEmail({
       type: "password_changed",

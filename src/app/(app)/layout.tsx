@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface px-3 py-4 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh print:hidden flex-col border-r border-line bg-surface px-3 py-4 lg:flex">
         <Logo href="/tableau-de-bord" className="px-2" />
         <p className="mt-1 flex items-center gap-2 px-3 text-xs font-medium text-muted">
           <span className="size-2 rounded-full bg-moss" aria-hidden />
@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-line/70 bg-paper/85 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 print:hidden items-center justify-between gap-2 border-b border-line/70 bg-paper/85 px-4 backdrop-blur sm:px-6">
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <Logo href="/tableau-de-bord" compact />
             <span className="truncate text-sm font-medium text-muted">{company.name}</span>

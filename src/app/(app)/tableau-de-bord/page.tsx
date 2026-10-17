@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AlertTriangle, Banknote, FileWarning, PackageOpen, Receipt, ShoppingCart, TrendingUp } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { VerifyBanner } from "@/components/verify-banner";
 import { requireUser } from "@/lib/auth/session";
 import { loadDashboard } from "@/lib/dashboard";
 import { invoiceNumber } from "@/lib/invoice-number";
@@ -49,6 +50,8 @@ export default async function DashboardPage() {
           Nouvelle vente
         </ButtonLink>
       </div>
+
+      {user.emailVerifiedAt ? null : <VerifyBanner email={user.email} />}
 
       {data.saleCount === 0 ? (
         <div className="rounded-[1.25rem] border border-dashed border-field bg-surface p-6 text-center">

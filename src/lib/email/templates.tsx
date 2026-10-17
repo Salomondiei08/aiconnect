@@ -31,20 +31,39 @@ const p = { margin: "0 0 16px", fontSize: 15, lineHeight: "24px", color: c.ink }
 const h = { margin: "0 0 16px", fontSize: 22, lineHeight: "30px", color: c.ink } as const;
 const button = { background: c.ink, color: "#ffffff", borderRadius: 999, padding: "12px 22px", fontSize: 15, fontWeight: 600 } as const;
 
-export function WelcomeEmail({ firstName, company, url }: { firstName: string; company: string; url: string }) {
+type WelcomeProps = { firstName: string; company: string; url: string; verifyUrl: string };
+
+export function WelcomeEmail({ firstName, company, url, verifyUrl }: WelcomeProps) {
   return (
     <Layout preview={`Bienvenue ${firstName}, votre espace ${company} est prêt`}>
       <Heading style={h}>Bienvenue, {firstName}</Heading>
-      <Text style={p}>Votre espace « {company} » est prêt. Ajoutez vos produits et enregistrez votre première vente en quelques minutes.</Text>
+      <Text style={p}>Votre espace « {company} » est prêt. Confirmez votre adresse e-mail pour pouvoir récupérer votre compte en cas d’oubli du mot de passe.</Text>
       <Section style={{ margin: "8px 0 16px" }}>
-        <Button href={url} style={button}>Ouvrir mon tableau de bord</Button>
+        <Button href={verifyUrl} style={button}>Confirmer mon adresse e-mail</Button>
+      </Section>
+      <Text style={{ ...p, color: c.muted, fontSize: 13 }}>Ensuite, ajoutez vos produits et enregistrez votre première vente depuis votre tableau de bord : {url}</Text>
+    </Layout>
+  );
+}
+
+export function welcomeText({ firstName, company, url, verifyUrl }: WelcomeProps): string {
+  return `Bienvenue, ${firstName}\n\nVotre espace « ${company} » est prêt.\nConfirmer mon adresse e-mail : ${verifyUrl}\nTableau de bord : ${url}\n`;
+}
+
+export function VerifyEmail({ firstName, verifyUrl }: { firstName: string; verifyUrl: string }) {
+  return (
+    <Layout preview="Confirmez votre adresse e-mail">
+      <Heading style={h}>Confirmez votre adresse e-mail</Heading>
+      <Text style={p}>Bonjour {firstName}, cliquez sur le bouton pour confirmer votre adresse. Le lien est valable 48 heures.</Text>
+      <Section style={{ margin: "8px 0 16px" }}>
+        <Button href={verifyUrl} style={button}>Confirmer mon adresse e-mail</Button>
       </Section>
     </Layout>
   );
 }
 
-export function welcomeText({ firstName, company, url }: { firstName: string; company: string; url: string }): string {
-  return `Bienvenue, ${firstName}\n\nVotre espace « ${company} » est prêt.\nOuvrir mon tableau de bord : ${url}\n`;
+export function verifyText({ firstName, verifyUrl }: { firstName: string; verifyUrl: string }): string {
+  return `Bonjour ${firstName},\n\nConfirmez votre adresse e-mail (lien valable 48 heures) :\n${verifyUrl}\n`;
 }
 
 export function PasswordResetEmail({ firstName, url }: { firstName: string; url: string }) {
