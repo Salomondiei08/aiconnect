@@ -1,35 +1,27 @@
-# DESIGN — proposition à valider avant l'interface
+# DESIGN : Comptoir
 
-## Référence
+**Statut : appliqué.** Identité inspirée de Reinvent Labs Academy à la demande du porteur du projet (même famille visuelle « Plateau »), avec un accent propre à l'ERP.
 
-Examen local de Reinvent Labs Academy : structure sobre, titres Poppins affirmés, grande zone d'introduction bleu marine, accents sarcelle, surfaces pierre claire, interactions discrètes et bonne hiérarchie mobile. Pour cet ERP, conserver la clarté, le contraste et le traitement éditorial ; créer une identité propre au produit, sans reprendre son logo ni ses couleurs à l'identique.
+## Tokens (variables CSS dans `src/app/globals.css`)
 
-## Tokens proposés
+| Rôle | Clair | Sombre |
+|---|---|---|
+| Encre marine, texte et structure (`--ink`, `--brand`, `--panel`) | `#14213A` | `#ECEEF2` / panneau `#1B2740` |
+| Pierre claire, fond (`--paper`) | `#F3F2EE` | `#121620` |
+| Surface des cartes et formulaires (`--surface`) | `#FFFFFF` | `#1B2130` |
+| Sarcelle, actions et états actifs (`--spark`, `--spark-fill`) | `#0B5754` / `#0E6F69` | `#7FD1C6` / `#3FB3A6` |
+| Ocre comptable, stock bas et montants à surveiller (`--ochre`) | `#8A5A14` sur `#F5E7CF` | `#E8B766` sur `#36291A` |
+| Rouge, erreurs uniquement (`--danger`) | `#B3261E` | `#F2948C` |
 
-- Encre ardoise `#203247` — navigation et texte principal.
-- Bleu pétrole `#176B72` — actions et états actifs.
-- Craie `#F5F4EF` — fond clair.
-- Papier `#FFFFFF` — surfaces et formulaires.
-- Ocre comptable `#C88736` — accent ponctuel pour alertes et chiffres à examiner.
-- Rouge erreur `#A83A36` — erreurs uniquement.
-
-Typographie proposée : **DM Sans** pour interface et chiffres, **Manrope** pour les titres. Échelle : 12, 14, 16, 20, 28, 36 px ; corps 16 px, interligne 1.5.
+Typographie : **Poppins** (fichiers locaux, `next/font/local`) pour l'interface et les titres. Échelle : 12, 14, 16, 20, 28 px, titres d'accueil en `clamp(2.2rem, 6vw, 4rem)`. Chiffres tabulaires (`.tabular`) dans les montants et tableaux.
 
 ## Mise en page
 
-Accueil public : texte aligné à gauche, introduction éditoriale concise, aperçu réel du tableau de bord comme visuel principal. Application : barre latérale compacte sur ordinateur, navigation basse ou tiroir sur mobile, contenu en une colonne jusqu'à 768 px et grilles fluides au-delà. Tableaux deviennent des lignes/cartes lisibles au téléphone. Cibles tactiles de 44 px minimum.
-
-```text
-Desktop:  [navigation] [titre + période] [KPI en rangée]
-                         [ventes / activité] [stock bas]
-Mobile:   [barre haute]
-          [titre] [KPI]
-          [ventes] [stock]
-          [navigation basse]
-```
+1. Accueil : en-tête collant translucide, grand panneau marine aux coins de 2 rem avec la promesse et un aperçu du tableau de bord, puis quatre cartes de fonctions.
+2. Application : barre latérale de 16 rem sur ordinateur (marque, entreprise avec pastille verte, navigation, identité, déconnexion), barre haute avec tiroir sur mobile.
+3. Tableaux dans un conteneur à défilement horizontal propre : jamais de débordement de page à 360 px.
+4. Boutons en pilule, cibles de 44 px minimum, focus visible, `prefers-reduced-motion` respecté.
 
 ## Principes
 
-Utiliser la vente et le stock comme langage visuel : totaux lisibles, unités explicites, états vides qui guident vers l'action. Une seule zone de marque forte ; pas de décor gratuit. Définir clair et sombre en variables CSS, ajouter un bouton unique de bascule de thème et vérifier le contraste WCAG AA avant livraison. Respecter `prefers-reduced-motion`, focus clavier, erreurs proches du champ et confirmations explicites.
-
-**Statut : proposition, pas encore validée.** N'implémenter aucun écran stylé avant accord sur les tokens ; les documents techniques et le socle peuvent avancer indépendamment.
+La vente et le stock sont le langage visuel : totaux lisibles, unités explicites (FCFA), états vides qui mènent à l'action. Une seule zone de marque forte (le panneau marine). Clair par défaut, sombre conçu et non inversé, bascule par un bouton unique.

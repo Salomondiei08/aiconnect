@@ -50,7 +50,7 @@ Règles :
 2. Confirmation différente : « Les mots de passe doivent être identiques ».
 3. Nom d'utilisateur ou e-mail déjà pris : « Ce nom d'utilisateur est déjà utilisé » / « Cet e-mail est déjà utilisé ».
 4. Succès : création de l'entreprise, d'un emplacement par défaut « Boutique principale » (code `BL0001`), du compte propriétaire avec le rôle Admin, ouverture de session, redirection vers `/tableau-de-bord`.
-5. Un e-mail dont le sujet contient « Bienvenue » est envoyé au propriétaire, avec son prénom dans le corps.
+5. Un e-mail dont le sujet contient « Bienvenue » est envoyé au propriétaire via Resend (type `welcome`), avec son prénom dans le corps.
 
 ## 5. Connexion et mot de passe
 
@@ -58,8 +58,9 @@ Règles :
 2. Mauvais identifiants : « Nom d'utilisateur ou mot de passe incorrect ».
 3. Compte inactif (`is_active = false`) ou sans droit de connexion : « Ce compte est désactivé ». Aucune session créée.
 4. `/mot-de-passe-oublie` : « E-mail », bouton « Envoyer le lien ». Réponse identique que l'adresse existe ou non : « Si un compte existe avec cette adresse, un e-mail a été envoyé. »
-5. E-mail envoyé : sujet contenant « Réinitialisation », partie texte contenant le lien complet (`APP_URL` + chemin contenant `reinitialiser` ou `reset-password` et le jeton).
-6. Page du lien : « Nouveau mot de passe », « Confirmation du mot de passe », bouton « Enregistrer ». Succès : redirection vers `/connexion` avec « Mot de passe modifié ». L'ancien mot de passe ne marche plus.
+5. E-mail envoyé (type `password_reset`) : sujet contenant « Réinitialisation », lien `APP_URL/reinitialiser?token=...`. Jeton de 256 bits ; seule son empreinte SHA-256 est en base ; valable 1 heure ; usage unique.
+6. Page du lien : « Nouveau mot de passe », « Confirmation du mot de passe », bouton « Enregistrer ». Succès : toutes les sessions sont fermées, redirection vers `/connexion` avec « Mot de passe modifié », e-mail de confirmation (type `password_changed`). L'ancien mot de passe ne marche plus.
+7. Lien déjà utilisé ou expiré : « Lien invalide ou expiré ».
 
 ## 6. Tableau de bord (`/tableau-de-bord`)
 
@@ -93,15 +94,21 @@ Règles :
 2. Chaque produit est une tuile cliquable `data-testid="product-tile"` contenant son nom. Un clic ajoute 1 au panier.
 3. Total du panier : `data-testid="cart-total"`.
 4. Bouton « Encaisser » ouvre le paiement, mode « Espèces » par défaut, bouton « Valider le paiement ».
-5. Succès : « Vente enregistrée », stock décrémenté, vente rattachée à l'emplacement et à l'utilisateur, KPI « Total des ventes » mis à jour.
+5. Succès : « Vente enregistrée », stock décrémenté (jamais négatif, dans la même transaction), vente rattachée à l'emplacement et à l'utilisateur, KPI « Total des ventes » mis à jour.
+6. Après la vente : lien « Télécharger la facture (PDF) » (`/api/ventes/{id}/facture`, PDF réel) et champ « E-mail du client » + bouton « Envoyer la facture ». Succès : « Facture envoyée », e-mail `invoice` avec la facture PDF jointe.
 
-## 10. Modèle de données minimal
+## 10. Modèle de données (Prisma, `prisma/schema.prisma`)
 
-1. `companies` : nom, devise, pays, commune, ville, code postal, point de repère, fuseau, mois de début d'exercice, méthode comptable, taxes.
-2. `locations` : `company_id`, nom, code.
-3. Utilisateurs (table Better Auth étendue) : `company_id`, `username`, `prefix`, `first_name`, `last_name`, `role`, `is_active`, `can_login`, `all_locations`.
-4. `products` : `company_id`, nom, prix d'achat, prix de vente, stock, stock minimum (entiers XOF).
-5. `sales` et `sale_items` : `company_id`, `location_id`, `user_id`, total, mode de paiement, date.
+1. `Company`, `Location`, `User` (+ `UserLocation`), `Session` (empreinte du jeton), `PasswordResetToken` (empreinte, `expiresAt`, `usedAt`).
+2. `Product`, `Sale`, `SaleItem`, `StockMovement`. Montants en entiers XOF.
+3. `EmailDelivery` : `type` (`welcome`, `password_reset`, `password_changed`, `invoice`), `to`, `subject`, `status` (`queued`, `sent`, `delivered`, `bounced`, `failed`, `complained`, `delayed`), `resendId`, `idempotencyKey` unique, `attempts`, `error` expurgé, `attachments` (nom, taille, type), `lastEventAt`.
+4. `EmailWebhookEvent` : `providerEventId` (svix-id) unique, `type`, `occurredAt`.
+
+## 10 bis. E-mails et webhook
+
+1. Envoi uniquement par le SDK Resend côté serveur. La ligne `EmailDelivery` est créée avant l'appel ; son `idempotencyKey` est transmis à Resend, donc les reprises (3 essais, délai progressif, erreurs passagères seulement) ne dupliquent pas l'e-mail.
+2. Réponse acceptée = statut `sent`. Seul un webhook signé fait passer à `delivered`, `bounced`, `failed`...
+3. `POST /api/webhooks/resend` : signature Svix vérifiée sur le corps brut (400 sinon), événement répété ignoré (200), événement plus ancien que le dernier appliqué sans effet.
 
 ## 11. Technique
 
