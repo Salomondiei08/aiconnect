@@ -7,7 +7,8 @@ import {
   newOwner,
   signup,
   signupUntilStep3,
-  waitForEmail,
+  waitForDelivery,
+  waitForProviderEvent,
 } from "./helpers";
 
 test.describe("Inscription en 3 étapes (5.2)", () => {
@@ -22,8 +23,10 @@ test.describe("Inscription en 3 étapes (5.2)", () => {
     const owner = await signup(page);
     await expect(page.getByText(new RegExp(`Bienvenue,?\\s+${owner.firstName}`, "i")).first()).toBeVisible();
 
-    const mail = await waitForEmail(owner.email, /bienvenue/i);
-    expect(`${mail.text} ${mail.html}`).toContain(owner.firstName);
+    const delivery = await waitForDelivery(owner.email, "welcome");
+    expect(delivery.subject).toMatch(/bienvenue/i);
+    const sent = await waitForProviderEvent(delivery.resendId!);
+    expect(`${sent.text ?? ""} ${sent.html ?? ""}`).toContain(owner.firstName);
   });
 
   test("refuse un mot de passe faible (RG3)", async ({ page }) => {

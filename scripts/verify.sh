@@ -6,20 +6,25 @@ cd "$(dirname "$0")/.."
 
 step() { printf '\n== %s\n' "$1"; }
 fail() { printf '\nÉCHEC : %s\n' "$1"; exit 1; }
+DEV_COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
 
 step "Fichiers verrouillés (tests = contrat)"
 shasum -a 256 -c .claude/locked.sha256 --quiet \
   || fail "e2e/, playwright.config.ts ou scripts/verify.sh ont changé. Restaure-les avec 'git checkout -- <fichier>' et corrige l'application, pas les tests."
 
-[ -f package.json ] || fail "package.json absent : commence par docs/PLAN.md, étape 0."
+[ -f package.json ] || fail "package.json absent : commence par le socle (TASKS.md T02)."
 
-step "Mailpit (e-mails de test)"
-if ! curl -sf http://localhost:8025/api/v1/info >/dev/null; then
-  command -v mailpit >/dev/null || fail "mailpit introuvable : brew install mailpit"
-  nohup mailpit >/dev/null 2>&1 &
-  for _ in $(seq 1 20); do curl -sf http://localhost:8025/api/v1/info >/dev/null && break; sleep 0.5; done
-  curl -sf http://localhost:8025/api/v1/info >/dev/null || fail "Mailpit ne démarre pas"
-fi
+step "Variables Resend"
+for var in RESEND_API_KEY RESEND_FROM_EMAIL; do
+  grep -q "^$var=..*" .env.local 2>/dev/null || [ -n "${!var:-}" ] || fail "$var manquant dans .env.local"
+done
+command -v resend >/dev/null || fail "CLI resend introuvable (npm i -g resend-cli) : les tests lisent le statut fournisseur avec elle"
+
+step "PostgreSQL (Docker Compose)"
+"${DEV_COMPOSE[@]}" up -d --wait db >/dev/null 2>&1 || fail "le conteneur db ne démarre pas (docker compose ... up db)"
+"${DEV_COMPOSE[@]}" exec -T db psql -q -U erp -d postgres \
+  -c 'DROP DATABASE IF EXISTS erp_e2e WITH (FORCE)' -c 'CREATE DATABASE erp_e2e' >/dev/null \
+  || fail "impossible de recréer la base erp_e2e"
 
 step "TypeScript"
 out=$(npx tsc --noEmit 2>&1) || { echo "$out" | head -40; fail "erreurs TypeScript"; }
@@ -27,13 +32,15 @@ out=$(npx tsc --noEmit 2>&1) || { echo "$out" | head -40; fail "erreurs TypeScri
 step "Lint"
 out=$(npm run --silent lint --if-present 2>&1) || { echo "$out" | tail -40; fail "erreurs de lint"; }
 
+step "Tests unitaires"
+out=$(npm run --silent test:unit 2>&1) || { echo "$out" | tail -40; fail "tests unitaires rouges (script test:unit requis)"; }
+
 step "Build de production"
-mkdir -p .e2e
-out=$(DATABASE_URL=file:.e2e/build.db BETTER_AUTH_SECRET=build-only-secret-0123456789abcdef \
-  BETTER_AUTH_URL=http://localhost:3100 APP_URL=http://localhost:3100 E2E=1 npm run build 2>&1) \
+out=$(DATABASE_URL="postgresql://erp:erp_local_only@localhost:5434/erp_e2e?schema=public" \
+  APP_URL=http://localhost:3100 E2E=1 npm run build 2>&1) \
   || { echo "$out" | tail -40; fail "le build échoue"; }
 
-step "Tests d'acceptation (Playwright)"
+step "Tests d'acceptation (Playwright, vrais envois Resend)"
 # Un serveur resté ouvert sur 3100 ferait échouer le démarrage.
 lsof -ti :3100 | xargs kill 2>/dev/null || true
 out=$(npx playwright test --reporter=line 2>&1) \

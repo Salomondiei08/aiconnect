@@ -1,9 +1,10 @@
+import { execFileSync } from "node:child_process";
+import { createHmac, randomUUID } from "node:crypto";
 import { expect, type Locator, type Page } from "@playwright/test";
+import { Pool } from "pg";
 
 /** Mot de passe conforme à RG3, utilisé par défaut dans tous les tests. */
 export const PASSWORD = "Erp!2026demo";
-
-const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8025";
 
 /** Identifiant court et unique : chaque test crée sa propre entreprise, donc pas de reset de base. */
 export function uniq(): string {
@@ -70,7 +71,7 @@ export function newOwner(): Owner {
     company: `Boutique ${id}`,
     firstName: `Awa${id}`,
     username: `owner_${id}`,
-    email: `owner-${id}@example.test`,
+    email: testAddress(`owner-${id}`),
     password: PASSWORD,
   };
 }
@@ -122,37 +123,117 @@ export async function logout(page: Page): Promise<void> {
   await page.context().clearCookies();
 }
 
-export type Mail = { subject: string; text: string; html: string };
-
-/** Attend dans Mailpit un e-mail pour `to` dont le sujet correspond, et renvoie son contenu. */
-export async function waitForEmail(to: string, subject: RegExp, timeoutMs = 20_000): Promise<Mail> {
-  const deadline = Date.now() + timeoutMs;
-  const query = encodeURIComponent(`to:"${to}"`);
-  while (Date.now() < deadline) {
-    const res = await fetch(`${MAILPIT_URL}/api/v1/search?query=${query}`);
-    if (res.ok) {
-      const body = (await res.json()) as { messages?: { ID: string; Subject: string }[] };
-      const hit = body.messages?.find((m) => subject.test(m.Subject));
-      if (hit) {
-        const msg = (await (await fetch(`${MAILPIT_URL}/api/v1/message/${hit.ID}`)).json()) as {
-          Subject: string;
-          Text?: string;
-          HTML?: string;
-        };
-        return { subject: msg.Subject, text: msg.Text ?? "", html: msg.HTML ?? "" };
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`Aucun e-mail ${subject} reçu par ${to} dans Mailpit (${MAILPIT_URL}) après ${timeoutMs} ms`);
+/**
+ * Adresses de test Resend : de vrais envois, livrés par Resend sans toucher une vraie boîte.
+ * Le libellé après « + » rend chaque adresse unique (contrainte d'unicité des e-mails).
+ */
+export function testAddress(label: string): string {
+  return `delivered+${label}@resend.dev`;
 }
 
-/** Premier lien http(s) de l'e-mail qui correspond au motif. */
-export function findLink(mail: Mail, pattern: RegExp): string {
-  const body = `${mail.text}\n${mail.html.replace(/&amp;/g, "&")}`;
-  const link = (body.match(/https?:\/\/[^\s"'<>)]+/g) ?? []).find((l) => pattern.test(l));
-  if (!link) throw new Error(`Aucun lien ${pattern} dans l'e-mail « ${mail.subject} »`);
+/** Base PostgreSQL dédiée aux tests (recréée par scripts/verify.sh). */
+export const E2E_DATABASE_URL =
+  process.env.E2E_DATABASE_URL ?? "postgresql://erp:erp_local_only@localhost:5434/erp_e2e?schema=public";
+
+/** Secret webhook propre aux tests : les vrais webhooks Resend n'atteignent pas localhost. */
+export const E2E_WEBHOOK_SECRET = `whsec_${Buffer.from("e2e-webhook-secret-0123456789abcdef").toString("base64")}`;
+
+let pool: Pool | undefined;
+
+/** Requête SQL directe : les tests vérifient ce qui est réellement persisté dans PostgreSQL. */
+export async function sql<T extends Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
+  pool ??= new Pool({ connectionString: E2E_DATABASE_URL, max: 2 });
+  const result = await pool.query(text, params);
+  return result.rows as T[];
+}
+
+export type EmailDelivery = {
+  id: string;
+  type: string;
+  to: string;
+  subject: string;
+  status: string;
+  resendId: string | null;
+  attempts: number;
+  error: string | null;
+  attachments: { filename: string; size: number; contentType?: string }[] | null;
+};
+
+/** Attend la ligne EmailDelivery acceptée par Resend (resendId renseigné) pour ce destinataire et ce type. */
+export async function waitForDelivery(to: string, type: string, timeoutMs = 30_000): Promise<EmailDelivery> {
+  const deadline = Date.now() + timeoutMs;
+  let last: EmailDelivery | undefined;
+  while (Date.now() < deadline) {
+    [last] = await sql<EmailDelivery>(
+      `select * from "EmailDelivery" where "to" = $1 and "type" = $2 order by "createdAt" desc limit 1`,
+      [to, type],
+    );
+    if (last?.resendId) return last;
+    if (last?.status === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`EmailDelivery ${type} pour ${to} sans resendId : ${JSON.stringify(last ?? null)}`);
+}
+
+export type ProviderEmail = {
+  id: string;
+  to: string[];
+  subject: string;
+  html: string | null;
+  text: string | null;
+  last_event: string;
+};
+
+/**
+ * Lit l'e-mail chez Resend avec la CLI `resend` (identifiants de l'humain, pas la clé d'envoi de l'app).
+ * RESEND_API_KEY est retiré de l'environnement pour que la CLI utilise son profil.
+ */
+export function resendCli<T>(args: string[]): T {
+  const env = { ...process.env };
+  delete env.RESEND_API_KEY;
+  const out = execFileSync("resend", [...args, "--json"], { env, encoding: "utf8" });
+  return JSON.parse(out) as T;
+}
+
+/** Attend que Resend rapporte l'événement voulu (par défaut : livré). L'acceptation API ne suffit pas. */
+export async function waitForProviderEvent(resendId: string, event = "delivered", timeoutMs = 90_000): Promise<ProviderEmail> {
+  const deadline = Date.now() + timeoutMs;
+  let last: ProviderEmail | undefined;
+  while (Date.now() < deadline) {
+    try {
+      last = resendCli<ProviderEmail>(["emails", "get", resendId]);
+      if (last.last_event === event) return last;
+    } catch {
+      // L'e-mail peut ne pas être encore lisible juste après l'envoi.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  throw new Error(`Resend n'a pas rapporté « ${event} » pour ${resendId} (dernier : ${last?.last_event ?? "aucun"})`);
+}
+
+/** Premier lien http(s) du contenu qui correspond au motif. */
+export function findLink(email: Pick<ProviderEmail, "html" | "text" | "subject">, pattern: RegExp): string {
+  const body = `${email.text ?? ""}\n${(email.html ?? "").replace(/&amp;/g, "&")}`;
+  const link = (body.match(/https?:\/\/[^\s"'<>()\[\]]+/g) ?? []).find((l) => pattern.test(l));
+  if (!link) throw new Error(`Aucun lien ${pattern} dans l'e-mail « ${email.subject} »`);
   return link;
+}
+
+/** En-têtes Svix signés comme Resend le fait, pour appeler le webhook local. */
+export function signWebhook(body: string, secret = E2E_WEBHOOK_SECRET, id = `msg_${randomUUID()}`) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const signature = createHmac("sha256", key).update(`${id}.${timestamp}.${body}`).digest("base64");
+  return { "content-type": "application/json", "svix-id": id, "svix-timestamp": timestamp, "svix-signature": `v1,${signature}` };
+}
+
+/** Événement webhook Resend minimal. */
+export function webhookEvent(type: string, emailId: string, createdAt = new Date()): string {
+  return JSON.stringify({
+    type,
+    created_at: createdAt.toISOString(),
+    data: { email_id: emailId, created_at: createdAt.toISOString(), to: ["delivered@resend.dev"], subject: "test" },
+  });
 }
 
 export type StaffUser = {
@@ -170,7 +251,7 @@ export function newStaff(overrides: Partial<StaffUser> = {}): StaffUser {
   return {
     firstName: `Kofi${id}`,
     lastName: `Zed${id}`,
-    email: `staff-${id}@example.test`,
+    email: testAddress(`staff-${id}`),
     username: `staff_${id}`,
     password: PASSWORD,
     role: "Caissier",

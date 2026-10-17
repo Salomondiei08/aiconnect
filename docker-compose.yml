@@ -1,0 +1,65 @@
+# Production self-hosted : Next.js + PostgreSQL + Caddy. Aucun serveur SMTP : les e-mails passent par l'API Resend en HTTPS.
+# Développement : ajouter -f docker-compose.dev.yml pour exposer PostgreSQL sur 127.0.0.1:5434.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_local_only}
+      POSTGRES_DB: erp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://erp:${POSTGRES_PASSWORD:-erp_local_only}@db:5432/erp?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["prod"]
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://erp:${POSTGRES_PASSWORD:-erp_local_only}@db:5432/erp?schema=public
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles: ["prod"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    profiles: ["prod"]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

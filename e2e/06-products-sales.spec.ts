@@ -1,5 +1,17 @@
 import { expect, test } from "@playwright/test";
-import { action, addProduct, digits, L, signup, stockOf, uniq } from "./helpers";
+import {
+  action,
+  addProduct,
+  digits,
+  L,
+  resendCli,
+  signup,
+  stockOf,
+  testAddress,
+  uniq,
+  waitForDelivery,
+  waitForProviderEvent,
+} from "./helpers";
 
 test.describe("Produits et caisse (4.2, 4.3)", () => {
   test("vente au comptoir : stock décrémenté et tableau de bord à jour", async ({ page }) => {
@@ -22,6 +34,31 @@ test.describe("Produits et caisse (4.2, 4.3)", () => {
     await page.getByRole("button", { name: /encaisser/i }).click();
     await page.getByRole("button", { name: /valider le paiement/i }).click();
     await expect(page.getByText(/vente enregistrée/i).first()).toBeVisible();
+
+    // Reçu PDF réel, téléchargeable.
+    const pdfHref = await page.getByRole("link", { name: /télécharger la facture/i }).getAttribute("href");
+    expect(pdfHref).toBeTruthy();
+    const pdf = await page.request.get(pdfHref!);
+    expect(pdf.status()).toBe(200);
+    expect(pdf.headers()["content-type"]).toContain("application/pdf");
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
+    // Facture envoyée par e-mail avec la pièce jointe PDF.
+    const customer = testAddress(`client-${uniq()}`);
+    await page.getByLabel(L("E-mail du client")).fill(customer);
+    await page.getByRole("button", { name: /envoyer la facture/i }).click();
+    await expect(page.getByText(/facture envoyée/i).first()).toBeVisible();
+
+    const delivery = await waitForDelivery(customer, "invoice");
+    expect(delivery.attachments?.[0]?.filename).toMatch(/\.pdf$/i);
+    expect(delivery.attachments?.[0]?.size ?? 0).toBeGreaterThan(500);
+    await waitForProviderEvent(delivery.resendId!);
+    const attachments = resendCli<{ data: { filename: string; content_type: string }[] }>([
+      "emails",
+      "attachments",
+      delivery.resendId!,
+    ]);
+    expect(attachments.data.some((a) => /\.pdf$/i.test(a.filename))).toBe(true);
 
     expect(await stockOf(page, name)).toBe("8");
 

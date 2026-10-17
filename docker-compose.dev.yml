@@ -1,0 +1,5 @@
+# Développement et tests : PostgreSQL accessible depuis l'hôte uniquement (127.0.0.1).
+services:
+  db:
+    ports:
+      - "127.0.0.1:5434:5432"
