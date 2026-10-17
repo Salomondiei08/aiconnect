@@ -49,4 +49,4 @@ ssh labtest 'cd ~/projects/comptoir && docker compose -p comptoir -f docker-comp
 ssh labtest 'curl -fsS http://127.0.0.1:3040/api/health'
 ```
 
-Ne jamais lancer `down -v` : le volume `comptoir_pgdata` contient les données.
+Ne jamais lancer `down -v` : le volume `comptoir_pgdata` contient les données. Les transcripts Claude de ce projet sont copiés dans `labtest:~/.claude/projects/-home-user-projects-comptoir/` : `cd ~/projects/comptoir && claude --continue` reprend la session sur le serveur.
