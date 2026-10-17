@@ -1,4 +1,4 @@
-# SPEC : ERP "Lot live" (contrat de l'agent)
+# SPEC : ERP, premier lot (contrat de l'agent)
 
 Source : `Cahier des charges — Application web de gestion d'entreprise (ERP)` (EMYTEC, 28 pages).
 Ce document réduit le cahier des charges à ce qui doit **marcher** en fin de live. Les tests `e2e/` vérifient chaque point ci-dessous. Les libellés entre guillemets sont des contrats : les tests les cherchent tels quels (casse et astérisque `*` final tolérés, apostrophe droite ou typographique tolérée).
@@ -111,6 +111,6 @@ Règles :
 4. E-mails : `nodemailer` en SMTP, configuré par `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`. Si `SMTP_USER` est vide : pas d'authentification (Mailpit). Toujours une partie texte en plus du HTML.
 5. Variables : voir `.env.example`.
 
-## Hors périmètre de ce live
+## Hors périmètre de ce lot
 
 Comptabilité SYSCOHADA, fiscalité, paie, achats fournisseurs, Mobile Money, mode hors ligne, modules optionnels (réparation, réservations, restauration).

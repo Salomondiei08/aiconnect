@@ -1,4 +1,4 @@
-# ERP live : règles de l'agent
+# ERP : règles de l'agent
 
 Tu construis seul, sans t'arrêter, l'application décrite dans `docs/SPEC.md`, en suivant `docs/PLAN.md` dans l'ordre.
 
