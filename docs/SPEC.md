@@ -105,11 +105,7 @@ Règles :
 
 ## 11. Technique
 
-1. Next.js (App Router), TypeScript strict, shadcn/ui restylé, Tailwind.
-2. Better Auth : email/mot de passe, plugin `username`, `sendResetPassword`. Rate limit désactivé si `E2E=1`.
-3. Drizzle + SQLite (`@libsql/client`), base dans `DATABASE_URL`. Script `npm run db:migrate` qui crée/migre la base pointée par `DATABASE_URL`.
-4. E-mails : `nodemailer` en SMTP, configuré par `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`. Si `SMTP_USER` est vide : pas d'authentification (Mailpit). Toujours une partie texte en plus du HTML.
-5. Variables : voir `.env.example`.
+Les choix techniques sont définis par les documents à la racine `ARCHITECTURE.md` et `AGENTS.md`, qui prévalent sur les anciennes notes de ce dossier. Pile obligatoire : Next.js, PostgreSQL, Prisma et Resend exclusivement ; React Email pour les gabarits. Interdits : SQLite, Drizzle, Nodemailer, SMTP, Mailpit et autres fournisseurs transactionnels. Les exigences d'envoi, journalisation, webhooks signés/idempotents, reprises, PDF, Docker Compose et déploiement self-hosted sont définies dans `PRD.md`, `ARCHITECTURE.md` et `TEST_PLAN.md`.
 
 ## Hors périmètre de ce lot
 

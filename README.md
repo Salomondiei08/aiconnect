@@ -1,38 +1,15 @@
-# ERP
+# ERP commercial
 
-Application web de gestion pour commerçants (zone OHADA), construite par un agent IA à partir du cahier des charges EMYTEC. Ce dépôt contient d'abord le **kit** qui encadre l'agent : le contrat (`docs/SPEC.md`), le plan (`docs/PLAN.md`), les tests d'acceptation (`e2e/`) et les hooks qui empêchent l'agent de s'arrêter tant que tout n'est pas vert.
+MVP de gestion pour commerçants. Les documents de référence sont `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, `TEST_PLAN.md` et `AGENTS.md`.
 
-## Prérequis
+## Stack
 
-Node 22+, npm, [Mailpit](https://mailpit.axllent.org/) (`brew install mailpit`).
+Next.js App Router, TypeScript strict, PostgreSQL + Prisma, Resend Node SDK et React Email. Déploiement self-hosted Docker Compose avec Next.js, PostgreSQL persistant et Caddy. Aucun SMTP ni fournisseur transactionnel alternatif.
 
-## Installation et lancement
+## Configuration
 
-```bash
-npm install
-npx playwright install chromium
-cp .env.example .env.local   # puis remplir BETTER_AUTH_SECRET
-npm run db:migrate
-mailpit &                    # e-mails visibles sur http://localhost:8025
-npm run dev                  # http://localhost:3000
-```
+Copier `.env.example` vers `.env.local`, créer un secret d'authentification et configurer un expéditeur Resend sur un domaine vérifié. Ne jamais committer de valeurs réelles. Les courriels de test réel sont réservés à une boîte autorisée.
 
-## Vérifier que tout marche
+## Développement et livraison
 
-```bash
-scripts/verify.sh            # typecheck, lint, build, tests e2e (port 3100)
-```
-
-Boucle rapide sur un seul fichier : `E2E_DEV=1 npx playwright test e2e/03-auth.spec.ts`.
-
-## Variables d'environnement
-
-Voir `.env.example` : `DATABASE_URL`, `APP_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`. En production, les e-mails passent par Resend en SMTP.
-
-## Mode autopilote
-
-`touch .claude/autopilot.on` active deux hooks Claude Code : le hook Stop relance l'agent tant que `scripts/verify.sh` est rouge (25 fois maximum), le hook PreToolUse lui interdit de modifier les tests. Après avoir modifié un test à la main : `scripts/lock.sh`.
-
-## Déploiement
-
-Pas encore déployé. Cible prévue : serveur labtest (voir le skill `labtest-production-ops`).
+Les commandes seront ajoutées avec le socle Docker/Prisma (voir `TASKS.md`). Exécuter les scénarios de `TEST_PLAN.md` et distinguer test unitaire, intégration PostgreSQL, appel réel Resend et réception en boîte. Pas de déploiement avant demande explicite et lecture du skill `labtest-production-ops`.
