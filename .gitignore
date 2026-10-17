@@ -15,3 +15,5 @@ playwright-report/
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma

@@ -1,0 +1,211 @@
+// Modèle du premier lot ERP. Toute donnée métier porte companyId (isolation entre entreprises).
+// Montants en entiers XOF (pas de décimales).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id                   String   @id @default(cuid())
+  name                 String
+  currency             String   @default("XOF")
+  country              String   @default("Côte d'Ivoire")
+  commune              String
+  city                 String
+  postalCode           String
+  landmark             String
+  timezone             String   @default("Africa/Abidjan")
+  startDate            DateTime?
+  website              String?
+  phone                String?
+  fiscalYearStartMonth Int      @default(1)
+  stockMethod          String   @default("FIFO")
+  tax1Name             String?
+  tax1Number           String?
+  createdAt            DateTime @default(now())
+
+  locations      Location[]
+  users          User[]
+  products       Product[]
+  sales          Sale[]
+  stockMovements StockMovement[]
+  emails         EmailDelivery[]
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  createdAt DateTime @default(now())
+  sales     Sale[]
+  users     UserLocation[]
+
+  @@unique([companyId, code])
+}
+
+/// Emplacements autorisés quand l'utilisateur n'a pas accès à « Tous les emplacements ».
+model UserLocation {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, locationId])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  username     String    @unique
+  email        String    @unique
+  prefix       String?
+  firstName    String
+  lastName     String?
+  passwordHash String?
+  role         String
+  isActive     Boolean   @default(true)
+  canLogin     Boolean   @default(true)
+  allLocations Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+  sales       Sale[]
+  locations   UserLocation[]
+
+  @@index([companyId])
+}
+
+/// id = empreinte SHA-256 du jeton du cookie : le jeton lui-même n'est jamais stocké.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Jeton de réinitialisation : empreinte seule, expiration courte, usage unique (usedAt).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  purchasePrice Int
+  salePrice     Int
+  stockQty      Int
+  minStock      Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+
+  @@index([companyId])
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  locationId    String
+  location      Location @relation(fields: [locationId], references: [id])
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  number        Int
+  total         Int
+  paymentMethod String   @default("cash")
+  createdAt     DateTime @default(now())
+
+  items          SaleItem[]
+  stockMovements StockMovement[]
+
+  @@unique([companyId, number])
+  @@index([companyId, createdAt])
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  qty       Int
+  unitPrice Int
+  total     Int
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleId    String?
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+  /// initial | sale
+  type      String
+  /// Signé : + entrée, - sortie.
+  qty       Int
+  createdAt DateTime @default(now())
+}
+
+/// Journal des envois. « sent » = accepté par Resend ; seuls les webhooks signés passent à delivered/bounced/failed.
+model EmailDelivery {
+  id             String    @id @default(cuid())
+  companyId      String?
+  company        Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  /// welcome | password_reset | password_changed | invoice
+  type           String
+  to             String
+  subject        String
+  /// queued | sent | delivered | bounced | failed | complained | delayed
+  status         String    @default("queued")
+  resendId       String?   @unique
+  idempotencyKey String    @unique
+  attempts       Int       @default(0)
+  /// Message d'erreur expurgé (jamais de clé ni de contenu).
+  error          String?
+  /// [{ filename, size, contentType }]
+  attachments    Json?
+  lastEventAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  events EmailWebhookEvent[]
+
+  @@index([to, type])
+}
+
+model EmailWebhookEvent {
+  id              String         @id @default(cuid())
+  /// svix-id : clé de déduplication des événements répétés.
+  providerEventId String         @unique
+  emailDeliveryId String?
+  emailDelivery   EmailDelivery? @relation(fields: [emailDeliveryId], references: [id], onDelete: SetNull)
+  type            String
+  occurredAt      DateTime
+  receivedAt      DateTime       @default(now())
+}
