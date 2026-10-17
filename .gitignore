@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+out/
+build/
+*.db
+*.db-*
+.e2e/
+test-results/
+playwright-report/
+.claude/autopilot.on
+.claude/.stop-count
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
