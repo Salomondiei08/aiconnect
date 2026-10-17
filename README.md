@@ -1,4 +1,4 @@
-# ERP live
+# ERP
 
 Application web de gestion pour commerçants (zone OHADA), construite par un agent IA à partir du cahier des charges EMYTEC. Ce dépôt contient d'abord le **kit** qui encadre l'agent : le contrat (`docs/SPEC.md`), le plan (`docs/PLAN.md`), les tests d'acceptation (`e2e/`) et les hooks qui empêchent l'agent de s'arrêter tant que tout n'est pas vert.
 

@@ -1,7 +1,7 @@
 # SPEC : ERP, premier lot (contrat de l'agent)
 
 Source : `Cahier des charges — Application web de gestion d'entreprise (ERP)` (EMYTEC, 28 pages).
-Ce document réduit le cahier des charges à ce qui doit **marcher** en fin de live. Les tests `e2e/` vérifient chaque point ci-dessous. Les libellés entre guillemets sont des contrats : les tests les cherchent tels quels (casse et astérisque `*` final tolérés, apostrophe droite ou typographique tolérée).
+Ce document réduit le cahier des charges à ce qui doit **marcher** dans ce premier lot. Les tests `e2e/` vérifient chaque point ci-dessous. Les libellés entre guillemets sont des contrats : les tests les cherchent tels quels (casse et astérisque `*` final tolérés, apostrophe droite ou typographique tolérée).
 
 ## 1. Règles générales
 
