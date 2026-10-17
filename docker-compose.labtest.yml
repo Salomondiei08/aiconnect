@@ -1,0 +1,6 @@
+# labtest : le Caddy de l'hôte (systemd) termine TLS ; l'app n'écoute que sur 127.0.0.1.
+# docker compose -p comptoir -f docker-compose.yml -f docker-compose.labtest.yml --profile prod up -d --build --wait db migrate app
+services:
+  app:
+    ports:
+      - "127.0.0.1:${APP_PORT:-3040}:3000"
