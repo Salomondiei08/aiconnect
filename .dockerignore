@@ -1,0 +1,13 @@
+.git
+node_modules
+.next
+.e2e
+.env*
+!.env.example
+e2e
+test-results
+playwright-report
+src/generated
+*.md
+playwright.config.ts
+scripts

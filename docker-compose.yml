@@ -17,8 +17,9 @@ services:
       retries: 20
 
   migrate:
-    build: .
-    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    build:
+      context: .
+      target: migrator
     environment:
       DATABASE_URL: postgresql://erp:${POSTGRES_PASSWORD:-erp_local_only}@db:5432/erp?schema=public
     depends_on:
@@ -27,9 +28,14 @@ services:
     profiles: ["prod"]
 
   app:
-    build: .
+    build:
+      context: .
+      target: runner
     restart: unless-stopped
-    env_file: .env.production
+    # Secrets de production (RESEND_*, APP_URL...) : fichier sur le serveur, jamais dans Git.
+    env_file:
+      - path: .env.production
+        required: false
     environment:
       DATABASE_URL: postgresql://erp:${POSTGRES_PASSWORD:-erp_local_only}@db:5432/erp?schema=public
     depends_on:
