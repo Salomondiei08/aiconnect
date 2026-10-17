@@ -37,4 +37,16 @@ Voir `.env.example` : `DATABASE_URL`, `APP_URL`, `RESEND_API_KEY`, `RESEND_FROM_
 docker compose --profile prod up -d --build --wait
 ```
 
-Le service `migrate` applique `prisma migrate deploy` avant le démarrage de l'application ; Caddy obtient le certificat TLS et sert `app:3000`. PostgreSQL n'est pas exposé hors du réseau Compose ; le volume `pgdata` est persistant. Déclarer le webhook Resend sur `https://<domaine>/api/webhooks/resend` et copier son secret dans `RESEND_WEBHOOK_SECRET`. Pas encore déployé : voir le skill `labtest-production-ops`.
+Le service `migrate` applique `prisma migrate deploy` avant le démarrage de l'application ; Caddy obtient le certificat TLS et sert `app:3000`. PostgreSQL n'est pas exposé hors du réseau Compose ; le volume `pgdata` est persistant. Déclarer le webhook Resend sur `https://<domaine>/api/webhooks/resend` et copier son secret dans `RESEND_WEBHOOK_SECRET`.
+
+## Déploiement actuel : labtest
+
+En ligne sur **https://comptoir.reinvent-labs.com**. Code dans `labtest:~/projects/comptoir` (copié par rsync, sans `.env`), secrets dans `.env` (POSTGRES_PASSWORD, APP_PORT) et `.env.production` (RESEND_*, APP_URL), mode 600. Le Caddy de l'hôte termine TLS et renvoie vers `127.0.0.1:3040`. Clé Resend `comptoir-labtest` (envoi seul, domaine `notify.reinvent-labs.com`) et webhook Resend vers `/api/webhooks/resend`.
+
+```bash
+rsync -az --exclude .git --exclude node_modules --exclude .next --exclude '.env*' --exclude src/generated ./ labtest:~/projects/comptoir/
+ssh labtest 'cd ~/projects/comptoir && docker compose -p comptoir -f docker-compose.yml -f docker-compose.labtest.yml --profile prod up -d --build --wait db migrate app'
+ssh labtest 'curl -fsS http://127.0.0.1:3040/api/health'
+```
+
+Ne jamais lancer `down -v` : le volume `comptoir_pgdata` contient les données.

@@ -11,7 +11,7 @@
 | T07 | Produits, caisse, stock atomique, reçu PDF et courriel de facture | Backend | T03,T05 | Fait |
 | T08 | Interface responsive après validation DESIGN.md | Interface | T01 | Fait (design inspiré de Reinvent Labs Academy, validé par le porteur) |
 | T09 | Tests unitaires, PostgreSQL d'intégration, e2e et boîte Resend autorisée | QA | T02–T08 | Fait (25 unitaires, 31 e2e + 1 boîte réelle) |
-| T10 | Déploiement self-hosted et vérification domaine/Resend via skill | Pilote | T09 | À faire, demande de déploiement requise |
+| T10 | Déploiement self-hosted et vérification domaine/Resend via skill | Pilote | T09 | Fait : https://comptoir.reinvent-labs.com (labtest, Compose -p comptoir, Caddy hôte) |
 | T11 | Envoyer les courriels d'intégration à une boîte autorisée et confirmer la réception réelle | QA | T05–T07 | Fait pour le bienvenue (reçu dans Gmail) ; facture vérifiée côté Resend (livrée, PDF joint) sur adresse de test |
 
 Un seul agent modifie un fichier à la fois. Le pilote possède les documents et l'intégration ; les sous-agents annoncent les contrats API et les chemins qu'ils touchent avant d'éditer.
