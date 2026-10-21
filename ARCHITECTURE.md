@@ -10,10 +10,22 @@
 
 ## Données principales
 
-`Company`, `Location`, `User`, `Product`, `Sale`, `SaleItem`, `StockMovement`, `EmailDelivery`, `EmailWebhookEvent`, `PasswordResetToken`, `VerificationToken`.
+`Company`, `Location`, `User`, `Product`, `Sale`, `SaleItem`, `StockMovement`, `EmailDelivery`, `EmailWebhookEvent`, `PasswordResetToken`, `VerificationToken`, `PlatformAuditLog`.
 Toutes les entités commerciales portent `companyId`. Les lectures et écritures vérifient la société depuis la session côté serveur ; ne jamais faire confiance à `companyId` reçu du navigateur.
 Les ventes, lignes et mouvements de stock sont écrits dans une transaction Prisma. Prix en unités entières XOF.
 `EmailDelivery` conserve type, destinataire, statut interne, identifiant Resend, tentative, erreur expurgée, dates et clé d'idempotence. Les événements webhook conservent l'identifiant événement unique et son horodatage ; aucune donnée secrète.
+
+`Company.status` vaut `active` ou `suspended` ; une entreprise suspendue coupe l'accès à tous ses comptes (vérifié dans `getCurrentUser`, sessions détruites à la suspension). `User.platformRole` vaut `platform_admin` ou `null` : c'est un droit **additif** qui n'élargit aucun rôle métier. `PlatformAuditLog` conserve acteur, action, cible (entreprise ou compte), entreprise concernée et détails non secrets.
+
+## Espace plateforme (`/admin`)
+
+Couche d'exploitation au-dessus de l'isolation par entreprise, réservée aux super-admins :
+
+- **Accès** : `isPlatformAdmin(user)` = `User.platformRole === "platform_admin"` **ou** adresse présente dans `PLATFORM_ADMIN_EMAILS` (liste d'amorçage séparée par virgules, comparée en minuscules). La règle pure vit dans `src/lib/platform-rules.ts` (testée unitairement) ; son application serveur dans `src/lib/platform.ts` (`server-only`), avec `requirePlatformAdmin()` qui redirige un compte connecté non autorisé vers `/tableau-de-bord` et un visiteur sans session vers `/connexion`.
+- **Amorçage** : à la connexion, `syncPlatformRole()` écrit le rôle en base pour une adresse listée (une seule écriture). Retirer une adresse de la variable ne révoque rien : la révocation passe par `/admin/utilisateurs`, où elle est journalisée. Un super-admin ne peut pas retirer son propre droit.
+- **Lectures** : `src/lib/admin.ts` (`server-only`) est le seul module à traverser toutes les entreprises — agrégats par entreprise, séries d'inscriptions, volumes, journal des envois et des actions. Chaque page commence par `requirePlatformAdmin()`.
+- **Écritures** : `src/lib/actions/platform.ts` — statut d'entreprise, activation d'un compte, octroi/retrait du droit plateforme, fermeture de sessions. Chaque action vérifie le droit, journalise dans `PlatformAuditLog`, détruit les sessions concernées quand l'accès est retiré, puis `revalidatePath`. Aucune donnée secrète ni contenu de courriel n'est journalisé.
+- **Interface** : routes `/admin`, `/admin/entreprises`, `/admin/entreprises/[id]`, `/admin/utilisateurs`, `/admin/emails`, `/admin/journal` sous `src/app/(admin)/`, coquille distincte (barre latérale marine, badge plateforme) et `robots: noindex`.
 
 ## Flux API / sécurité
 

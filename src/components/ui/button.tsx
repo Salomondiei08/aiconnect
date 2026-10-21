@@ -5,29 +5,29 @@ import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 /**
- * shadcn/ui Button, restyled for the academy: pill shape and 44 px touch
- * targets. shadcn's variant names (default, outline, destructive, link...)
- * work alongside the brand ones used across the app (primary, spark,
- * inverse, onPanel).
+ * shadcn/ui Button, restylé pour le plan « Plateau » : pastille, cibles tactiles de 44 px,
+ * léger relief au survol et micro-pression au clic. Les noms de variantes shadcn
+ * (default, outline, destructive, link…) cohabitent avec ceux de la marque
+ * (primary, spark, inverse, onPanel) déjà utilisés dans l'application.
  */
 export const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold outline-none transition-[background-color,color,box-shadow,transform] active:scale-[0.98] focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold outline-none transition-[background-color,color,box-shadow,transform,filter] duration-200 active:scale-[0.98] focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive/20 motion-reduce:transition-none motion-reduce:active:scale-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-brand-strong",
-        primary: "bg-primary text-primary-foreground hover:bg-brand-strong",
-        outline: "border border-line bg-surface text-ink hover:bg-sunken",
-        secondary: "border border-line bg-surface text-ink hover:bg-sunken",
+        default: "bg-primary text-primary-foreground shadow-[var(--shadow-sm)] hover:bg-brand-strong hover:shadow-[var(--shadow-md)]",
+        primary: "bg-primary text-primary-foreground shadow-[var(--shadow-sm)] hover:bg-brand-strong hover:shadow-[var(--shadow-md)]",
+        outline: "border border-line bg-surface text-ink shadow-[var(--shadow-xs)] hover:border-spark/45 hover:bg-sunken",
+        secondary: "border border-line bg-surface text-ink shadow-[var(--shadow-xs)] hover:border-spark/45 hover:bg-sunken",
         ghost: "text-ink hover:bg-accent hover:text-accent-foreground",
-        destructive: "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30 dark:text-ink",
-        danger: "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30 dark:text-ink",
+        destructive: "bg-destructive text-white shadow-[var(--shadow-sm)] hover:bg-destructive/90 focus-visible:ring-destructive/30 dark:text-ink",
+        danger: "bg-destructive text-white shadow-[var(--shadow-sm)] hover:bg-destructive/90 focus-visible:ring-destructive/30 dark:text-ink",
         link: "rounded-none px-0 text-link underline-offset-4 hover:underline",
-        /** Teal call to action. */
-        spark: "bg-spark-fill text-on-spark hover:brightness-110",
-        /** Solid light button for the navy panels: the strongest call to action there. */
-        inverse: "bg-on-panel text-panel hover:bg-white",
-        /** Outline button that reads on the navy panel. */
+        /** Appel à l'action sarcelle, avec halo coloré. */
+        spark: "bg-spark-fill text-on-spark shadow-[var(--shadow-glow)] hover:brightness-110",
+        /** Bouton clair massif pour les panneaux marine : l'appel le plus fort à cet endroit. */
+        inverse: "bg-on-panel text-panel shadow-[var(--shadow-md)] hover:bg-white",
+        /** Bouton contour qui se lit sur le panneau marine. */
         onPanel: "border border-on-panel/35 text-on-panel hover:bg-on-panel/10",
       },
       size: {
@@ -49,7 +49,7 @@ export function Button({ className, variant = "default", size = "default", asChi
   return <Comp data-slot="button" data-variant={variant} data-size={size} className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
 
-/** A Next.js link styled as a shadcn Button. */
+/** Lien Next.js habillé en Button shadcn. */
 export function ButtonLink({ className, variant, size, ...props }: React.ComponentProps<typeof Link> & VariantProps<typeof buttonVariants>) {
   return (
     <Button asChild variant={variant} size={size} className={className}>

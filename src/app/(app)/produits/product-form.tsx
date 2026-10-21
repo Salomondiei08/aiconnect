@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { createProductAction } from "@/lib/actions/products";
 import type { FormState } from "@/lib/actions/form";
 
-/** Bouton « Ajouter un produit » qui déplie le formulaire au-dessus de la liste. */
-export function ProductForm() {
-  const [open, setOpen] = useState(false);
+/** Bouton « Ajouter un produit » qui déplie le formulaire au-dessus de la liste (?ajouter=1 l'ouvre directement). */
+export function ProductForm({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   // Succès : on referme le formulaire et on confirme ; le formulaire est remis à zéro par React.
   const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, formData) => {
     const result = await createProductAction(prev, formData);

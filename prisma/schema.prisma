@@ -27,6 +27,8 @@ model Company {
   stockMethod          String    @default("FIFO")
   tax1Name             String?
   tax1Number           String?
+  /// active | suspended : une entreprise suspendue bloque la connexion de tous ses comptes.
+  status               String    @default("active")
   createdAt            DateTime  @default(now())
 
   locations      Location[]
@@ -71,6 +73,8 @@ model User {
   lastName        String?
   passwordHash    String?
   role            String
+  /// platform_admin | null : accès à l'espace plateforme (/admin), au-dessus des entreprises.
+  platformRole    String?
   isActive        Boolean   @default(true)
   canLogin        Boolean   @default(true)
   allLocations    Boolean   @default(true)
@@ -249,4 +253,22 @@ model EmailWebhookEvent {
   type            String
   occurredAt      DateTime
   receivedAt      DateTime       @default(now())
+}
+
+/// Journal de l'espace plateforme : chaque action d'un super-admin est tracée (qui, quoi, sur qui).
+model PlatformAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String
+  /// company_suspended | company_reactivated | user_activated | user_deactivated | platform_admin_granted | platform_admin_revoked | sessions_revoked
+  action     String
+  /// company | user
+  targetType String
+  targetId   String?
+  companyId  String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }
