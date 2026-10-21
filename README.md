@@ -1,6 +1,6 @@
 # Comptoir, ERP commercial
 
-MVP de gestion pour commerçants (zone OHADA) : inscription en 3 étapes, connexion, mot de passe oublié, tableau de bord, utilisateurs et rôles, produits, caisse, facture PDF et e-mails transactionnels. Contrats : `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, `TEST_PLAN.md`, `AGENTS.md`, `docs/SPEC.md`.
+MVP de gestion pour commerçants (zone OHADA) : inscription en 3 étapes, connexion, mot de passe oublié, tableau de bord, utilisateurs et rôles, produits, caisse, facture PDF et e-mails transactionnels, plus un espace plateforme `/admin` réservé aux super-admins. Contrats : `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `TASKS.md`, `TEST_PLAN.md`, `AGENTS.md`, `docs/SPEC.md`.
 
 ## Stack
 
@@ -19,16 +19,27 @@ npm run dev                                   # http://localhost:3000
 ## Tests
 
 ```bash
-npm run test:unit                             # Vitest : reprises, idempotence, signature, règles métier
+npm run test:unit                             # Vitest : reprises, idempotence, signature, règles métier et plateforme
 scripts/verify.sh                             # tout : typecheck, lint, unitaires, build, e2e Playwright
 E2E_DEV=1 npx playwright test e2e/03-auth.spec.ts   # un fichier, boucle rapide
 ```
 
 Les e2e utilisent une base `erp_e2e` recréée à chaque passe et envoient de **vrais e-mails Resend** vers les adresses de test `delivered+...@resend.dev`. Le statut fournisseur est lu avec la CLI `resend` (connectée avec vos identifiants, `resend login`). Avec `RESEND_TEST_TO`, un test envoie aussi dans votre boîte réelle. Chaque passe envoie une trentaine d'e-mails : surveillez le quota de votre plan Resend.
 
+## Espace plateforme (`/admin`)
+
+Zone d'exploitation au-dessus de toutes les entreprises : vue d'ensemble (entreprises, comptes, ventes, inscriptions, envois), entreprises et fiche détaillée (suspension / réactivation), comptes (activation, octroi ou retrait du droit super-admin, fermeture des sessions), journal des envois et journal des actions.
+
+Le droit vient de `User.platformRole = 'platform_admin'` ou de la liste d'amorçage `PLATFORM_ADMIN_EMAILS` (adresses séparées par des virgules, comparées en minuscules) : à la première connexion d'une adresse listée, le rôle est écrit en base. Un compte connecté non autorisé est renvoyé vers `/tableau-de-bord`, un visiteur sans session vers `/connexion`. Toute action est enregistrée dans `PlatformAuditLog` (acteur, action, cible, entreprise, détails non secrets) ; la révocation du droit passe par `/admin/utilisateurs` et personne ne peut retirer son propre droit.
+
+```bash
+# .env.local ou .env.production
+PLATFORM_ADMIN_EMAILS=votre-adresse@example.com
+```
+
 ## Variables d'environnement
 
-Voir `.env.example` : `DATABASE_URL`, `APP_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`, `RESEND_TEST_TO`, et en production `POSTGRES_PASSWORD`, `APP_DOMAIN`.
+Voir `.env.example` : `DATABASE_URL`, `APP_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`, `RESEND_TEST_TO`, `PLATFORM_ADMIN_EMAILS`, et en production `POSTGRES_PASSWORD`, `APP_DOMAIN`.
 
 ## Production (Docker Compose)
 

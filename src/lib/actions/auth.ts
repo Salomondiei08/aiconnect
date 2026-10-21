@@ -24,6 +24,7 @@ import { logActivity } from "@/lib/activity";
 import { createVerificationUrl, verificationRequired } from "@/lib/email-verification";
 import { clearHits, isLimited, LIMITS, recordHit } from "@/lib/rate-limit";
 import { requireUser } from "@/lib/auth/session";
+import { syncPlatformRole } from "@/lib/platform";
 import { appUrl } from "@/lib/utils";
 import { emailSchema, fieldErrors, passwordSchema, usernameSchema } from "@/lib/validation";
 import { uniquenessErrors } from "@/lib/accounts";
@@ -128,17 +129,22 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   const key = `login:${username}:${await clientIp()}`;
   if (await isLimited(key, LIMITS.login.max, LIMITS.login.windowMs)) return { message: LIMITS.login.message, values: { username } };
 
-  const user = username ? await db.user.findUnique({ where: { username } }) : null;
+  const user = username
+    ? await db.user.findUnique({ where: { username }, include: { company: { select: { status: true } } } })
+    : null;
   const valid = await verifyPassword(password, user?.passwordHash);
   if (!user || !valid) {
     await recordHit(key);
     return { message: "Nom d'utilisateur ou mot de passe incorrect", values: { username } };
   }
   if (!user.isActive || !user.canLogin) return { message: "Ce compte est désactivé", values: { username } };
+  if (user.company.status !== "active") return { message: "Cette entreprise est suspendue. Contactez l'administrateur de la plateforme.", values: { username } };
   if (verificationRequired() && !user.emailVerifiedAt) return { message: "Confirmez d'abord votre adresse e-mail (lien reçu à l'inscription).", values: { username } };
 
   await clearHits(key);
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  // Amorçage du droit super-admin depuis PLATFORM_ADMIN_EMAILS (aucune écriture si le compte n'est pas concerné).
+  await syncPlatformRole(user);
   await createSession(user.id);
   await logActivity({ companyId: user.companyId, targetId: user.id, actorId: user.id, action: "login" });
   redirect("/tableau-de-bord");

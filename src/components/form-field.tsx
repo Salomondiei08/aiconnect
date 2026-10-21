@@ -1,9 +1,11 @@
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
  * Libellé + champ + aide ou erreur. Le libellé ne contient que son texte (et « * » si requis) :
- * l'aide est sous le champ, hors du <label>, pour garder un nom accessible exact.
+ * l'aide est sous le champ, hors du <label>, pour garder un nom accessible exact
+ * (les tests d'acceptation repèrent les champs par leur libellé).
  */
 export function FormField({
   id,
@@ -30,7 +32,8 @@ export function FormField({
       </Label>
       {children}
       {error ? (
-        <p role="alert" id={`${id}-error`} className="text-[13px] font-medium text-danger">
+        <p role="alert" id={`${id}-error`} className="flex items-start gap-1.5 text-[13px] font-medium text-danger animate-fade-up">
+          <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {error}
         </p>
       ) : hint ? (
@@ -43,8 +46,15 @@ export function FormField({
 /** Bandeau de résultat de formulaire. */
 export function FormNotice({ tone, children }: { tone: "error" | "success"; children: React.ReactNode }) {
   return (
-    <p role={tone === "error" ? "alert" : "status"} className={cn("rounded-xl px-4 py-3 text-sm font-medium leading-relaxed", tone === "error" ? "bg-danger-soft text-danger" : "bg-moss-soft text-moss")}>
-      {children}
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={cn(
+        "flex items-start gap-2 rounded-xl border px-4 py-3 text-sm font-medium leading-relaxed shadow-[var(--shadow-xs)] animate-fade-up",
+        tone === "error" ? "border-danger/25 bg-danger-soft text-danger" : "border-moss/25 bg-moss-soft text-moss",
+      )}
+    >
+      {tone === "error" ? <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden />}
+      <span>{children}</span>
     </p>
   );
 }

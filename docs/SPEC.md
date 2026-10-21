@@ -123,6 +123,22 @@ Règles :
 
 Les choix techniques sont définis par les documents à la racine `ARCHITECTURE.md` et `AGENTS.md`, qui prévalent sur les anciennes notes de ce dossier. Pile obligatoire : Next.js, PostgreSQL, Prisma et Resend exclusivement ; React Email pour les gabarits. Interdits : SQLite, Drizzle, Nodemailer, SMTP, Mailpit et autres fournisseurs transactionnels. Les exigences d'envoi, journalisation, webhooks signés/idempotents, reprises, PDF, Docker Compose et déploiement self-hosted sont définies dans `PRD.md`, `ARCHITECTURE.md` et `TEST_PLAN.md`.
 
+## 12. Espace plateforme `/admin` (ajout du 2026-10-21, additif)
+
+Cette section **s'ajoute** aux contrats ci-dessus : elle n'en modifie aucun. Les libellés, `data-testid` et messages des sections 1 à 11 restent identiques, et la suite `e2e/` verrouillée n'est pas concernée par ces routes.
+
+1. **Droit d'accès.** Un compte est super-admin si `User.platformRole = 'platform_admin'` **ou** si son adresse figure dans `PLATFORM_ADMIN_EMAILS` (séparateur virgule, comparaison en minuscules). Le droit est additif : il n'élargit aucun rôle métier (`Admin`, `Gérant`, `Caissier`, `Comptable`, `RH`) à l'intérieur d'une entreprise.
+2. **Garde d'entrée.** Chaque page et chaque action de `/admin` appelle `requirePlatformAdmin()` : sans session → redirection `/connexion` ; session non autorisée → redirection `/tableau-de-bord`. Aucune donnée d'une autre entreprise n'est rendue avant cette vérification.
+3. **Amorçage.** À la connexion, une adresse listée reçoit le rôle en base (une seule écriture). Retirer une adresse de la variable ne révoque pas un rôle déjà accordé : la révocation passe par `/admin/utilisateurs` et est journalisée. Un super-admin ne peut pas retirer son propre droit, ni accorder le droit à un compte désactivé.
+4. **Routes.** `/admin` (vue d'ensemble), `/admin/entreprises` et `/admin/entreprises/[id]`, `/admin/utilisateurs`, `/admin/emails`, `/admin/journal`. Toutes en `robots: noindex`.
+5. **Actions journalisées.** Suspendre/réactiver une entreprise, activer/désactiver un compte, accorder/retirer le droit plateforme, fermer les sessions d'un compte : chaque action écrit une ligne `PlatformAuditLog` (acteur, action, type et identifiant de la cible, entreprise, détails non secrets) puis invalide les vues concernées. Suspendre une entreprise ou désactiver un compte détruit les sessions ouvertes correspondantes.
+6. **Confidentialité.** Le journal des envois n'expose que des métadonnées (type, destinataire, sujet, statut, tentatives, erreur expurgée, entreprise, dates) : jamais de contenu de courriel, de jeton ni de clé.
+7. **Interface.** Coquille distincte de l'application (barre latérale marine, badge « Espace plateforme », titre « Administration de la plateforme »), tableaux avec recherche instantanée, filtres, tri et pagination, et mêmes règles d'accessibilité que le reste du produit (44 px, focus visible, contrastes AA, `prefers-reduced-motion`).
+
+## 13. Modernisation visuelle (ajout du 2026-10-21, additif)
+
+Le langage visuel « Plateau » est enrichi sans changer les contrats : surfaces papier/verre/panneau marine, ombres et halo sarcelle, animations d'entrée et au défilement, compteurs animés (la valeur finale affichée est exactement la valeur cible), graphiques maison décoratifs (chaque chiffre existe aussi en texte), squelettes de chargement par route, barre de progression de navigation, palette de commandes ⌘K. `prefers-reduced-motion` neutralise toutes les animations. Le bouton de thème reste unique et son nom accessible contient « thème » (règle 1.6).
+
 ## Hors périmètre de ce lot
 
 Comptabilité SYSCOHADA, fiscalité, paie, achats fournisseurs, Mobile Money, mode hors ligne, modules optionnels (réparation, réservations, restauration).
